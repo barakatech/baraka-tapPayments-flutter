@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -12,6 +13,7 @@ class TapCardViewWidget extends StatefulWidget {
   final bool generateToken;
   final Map<String, dynamic> sdkConfiguration;
   final String? cardNumber, cardExpiry;
+  final bool showLoading;
 
   const TapCardViewWidget({
     super.key,
@@ -27,13 +29,15 @@ class TapCardViewWidget extends StatefulWidget {
     this.cardExpiry,
     required this.generateToken,
     required this.sdkConfiguration,
+    this.showLoading = false,
   });
 
   @override
   State<TapCardViewWidget> createState() => _TapCardViewWidgetState();
 }
 
-class _TapCardViewWidgetState extends State<TapCardViewWidget> {
+class _TapCardViewWidgetState extends State<TapCardViewWidget>
+    with SingleTickerProviderStateMixin {
   late Function()? onReadyFunction;
   late Function()? onFocusFunction;
   late Function(String?)? onSuccessFunction;
@@ -44,10 +48,15 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget> {
   late Function(String?)? onHeightChangeFunction;
 
   bool tokenAlreadyInProgress = false;
-
+  bool sdkStarted = false;
   static const MethodChannel _channel = MethodChannel('card_flutter');
 
   static const EventChannel _eventChannel = EventChannel('card_flutter_event');
+
+  late AnimationController _shimmerController;
+  late Animation<double> _shimmerAnimation;
+  Timer? _heightDebounceTimer;
+  double? _pendingHeight;
 
   void streamTimeFromNative() {
     _eventChannel.receiveBroadcastStream().listen(_onEvent, onError: _onError);
@@ -61,11 +70,24 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget> {
 
   @override
   void initState() {
+    super.initState();
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat();
+
+    _shimmerAnimation = Tween<double>(
+      begin: -1.0,
+      end: 2.0,
+    ).animate(CurvedAnimation(
+      parent: _shimmerController,
+      curve: Curves.linear,
+    ));
+
     Future.delayed(const Duration(seconds: 0), () {
       streamTimeFromNative();
       startTapCardSDK();
     });
-    super.initState();
   }
 
   Future<dynamic> startTapCardSDK() async {
@@ -123,9 +145,16 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget> {
 
   handleCallbacks(dynamic result) {
     if (result.containsKey("onHeightChange")) {
-      setState(() {
-        height = double.parse(result["onHeightChange"].toString());
-        height = height + 10;
+      _pendingHeight = double.parse(result["onHeightChange"].toString()) + 10;
+
+      _heightDebounceTimer?.cancel();
+      _heightDebounceTimer = Timer(const Duration(milliseconds: 50), () {
+        if (_pendingHeight != null && mounted) {
+          setState(() {
+            height = _pendingHeight!;
+            isHeightSet = true;
+          });
+        }
       });
     }
 
@@ -150,6 +179,9 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget> {
     }
 
     if (result.containsKey("onReady")) {
+      setState(() {
+        sdkStarted = true;
+      });
       onReadyFunction = widget.onReady;
       onReadyFunction!();
     }
@@ -177,10 +209,71 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget> {
   }
 
   double height = 95;
+  bool isHeightSet = false;
 
   @override
   void dispose() {
+    _shimmerController.dispose();
+    _heightDebounceTimer?.cancel();
     super.dispose();
+  }
+
+  Widget _buildShimmerOverlay(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final shimmerColors = isDarkMode
+        ? [
+            const Color(0xFF6B6B6B),
+            const Color(0xFF5F5F5F),
+            const Color(0xFF6B6B6B),
+          ]
+        : [
+            const Color(0xFFF2F2F2),
+            const Color(0xFFE9E9E9),
+            const Color(0xFFF2F2F2),
+          ];
+
+    return AnimatedBuilder(
+      animation: _shimmerAnimation,
+      builder: (context, child) {
+        double shimmerHeight = height;
+        if (!isHeightSet) {
+          bool? acceptanceBadge =
+              widget.sdkConfiguration['features']?['acceptanceBadge'];
+          shimmerHeight =
+              (acceptanceBadge == null || acceptanceBadge == true) ? 105 : 74;
+        }
+
+        return Container(
+          height: shimmerHeight,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: shimmerColors,
+              stops: const [0.0, 0.5, 1.0],
+              transform: GradientRotation(0),
+            ),
+          ),
+          child: FractionallySizedBox(
+            widthFactor: 1.0,
+            child: ShaderMask(
+              shaderCallback: (bounds) {
+                return LinearGradient(
+                  begin: Alignment(_shimmerAnimation.value - 1, 0),
+                  end: Alignment(_shimmerAnimation.value, 0),
+                  colors: shimmerColors,
+                  stops: const [0.0, 0.5, 1.0],
+                ).createShader(bounds);
+              },
+              blendMode: BlendMode.srcATop,
+              child: Container(
+                color: Colors.white,
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -194,26 +287,44 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget> {
       tokenAlreadyInProgress = false;
     }
 
+    Widget platformView;
     if (Theme.of(context).platform == TargetPlatform.android) {
-      return SizedBox(
-        height: height,
-        child: AndroidView(
-          viewType: "plugin/tap_card_sdk",
-          creationParams: widget.sdkConfiguration,
-          creationParamsCodec: const StandardMessageCodec(),
-          layoutDirection: TextDirection.ltr,
-        ),
+      platformView = AndroidView(
+        viewType: "plugin/tap_card_sdk",
+        creationParams: widget.sdkConfiguration,
+        creationParamsCodec: const StandardMessageCodec(),
+        layoutDirection: TextDirection.ltr,
       );
     } else {
-      return SizedBox(
-        height: height,
-        child: UiKitView(
-          viewType: "plugin/tap_card_sdk",
-          creationParams: widget.sdkConfiguration,
-          layoutDirection: TextDirection.ltr,
-          creationParamsCodec: const StandardMessageCodec(),
-        ),
+      platformView = UiKitView(
+        viewType: "plugin/tap_card_sdk",
+        creationParams: widget.sdkConfiguration,
+        layoutDirection: TextDirection.ltr,
+        creationParamsCodec: const StandardMessageCodec(),
       );
     }
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOutCubicEmphasized,
+      child: SizedBox(
+        height: height,
+        child: Stack(
+          children: [
+            platformView,
+            if (widget.showLoading)
+              IgnorePointer(
+                ignoring: sdkStarted,
+                child: AnimatedOpacity(
+                  opacity: sdkStarted ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOutQuart,
+                  child: _buildShimmerOverlay(context),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

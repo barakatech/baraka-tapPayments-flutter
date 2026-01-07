@@ -1,3 +1,28 @@
+## 1.0.20 07-01-2026
+
+* Added shimmer loading effect for improved UX during SDK initialization
+* Update native dependence 
+* Fix onValidInput callback
+
+### How to Use showLoading
+
+To enable the shimmer loading effect, pass the `showLoading` parameter to `TapCardViewWidget`:
+
+```dart
+TapCardViewWidget(
+  generateToken: false,
+  sdkConfiguration: yourConfig,
+  showLoading: true, // Enable shimmer effect during SDK initialization
+  onReady: () {
+    // SDK is ready
+  },
+  // ... other callbacks
+)
+```
+
+**Features:**
+- Set to `false` (default) to disable the loading effect
+
 ## 1.0.19 24-09-2025
 
 * Support android 15

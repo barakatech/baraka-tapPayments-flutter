@@ -361,6 +361,32 @@ public class TapCardSDKDelegate implements PluginRegistry.ActivityResultListener
     @Override
     public void onValidInput(@NonNull String s) {
 
+//        handler.post(
+//                new Runnable() {
+//                    @Override
+//                    public void run() {
+//
+//                        try {
+//                            HashMap<String, Object> resultData = new HashMap<>();
+//                            resultData.put("onValidInput", s);
+//                            eventSink.success(resultData);
+//
+//                        } catch (IllegalStateException exception) {
+//                            // Output expected IllegalStateException.
+//                            System.out.println("Exception " + exception);
+//                            // Logging.log(exception);
+//                        } catch (Throwable throwable) {
+//                            // Output unexpected Throwables.
+//                            System.out.println("Exception throwable");
+//                            // Logging.log(throwable, false);
+//                        }
+//                    }
+//                });
+
+    }
+
+    @Override
+    public void onInValidInput(boolean b) {
         handler.post(
                 new Runnable() {
                     @Override
@@ -368,7 +394,7 @@ public class TapCardSDKDelegate implements PluginRegistry.ActivityResultListener
 
                         try {
                             HashMap<String, Object> resultData = new HashMap<>();
-                            resultData.put("onValidInput", s);
+                            resultData.put("onValidInput", !b);
                             eventSink.success(resultData);
 
                         } catch (IllegalStateException exception) {
@@ -380,10 +406,7 @@ public class TapCardSDKDelegate implements PluginRegistry.ActivityResultListener
                             System.out.println("Exception throwable");
                             // Logging.log(throwable, false);
                         }
-
-
                     }
                 });
-
     }
 }

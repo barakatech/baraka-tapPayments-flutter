@@ -195,6 +195,7 @@ class _CardViewScreenState extends State<CardViewScreen> {
             generateToken: generateToken,
             cardNumber: "5123450000000008",
             cardExpiry: "01/39",
+            showLoading: true,
           ),
           const SizedBox(height: 10),
           Visibility(
