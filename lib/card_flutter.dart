@@ -13,6 +13,8 @@ class TapCardViewWidget extends StatefulWidget {
   final bool generateToken;
   final Map<String, dynamic> sdkConfiguration;
   final String? cardNumber, cardExpiry;
+  final String? cardCvv;
+  final String? cardHolderName;
   final bool showLoading;
 
   const TapCardViewWidget({
@@ -27,6 +29,8 @@ class TapCardViewWidget extends StatefulWidget {
     this.onChangeSaveCard,
     this.cardNumber,
     this.cardExpiry,
+    this.cardCvv,
+    this.cardHolderName,
     required this.generateToken,
     required this.sdkConfiguration,
     this.showLoading = false,
@@ -76,13 +80,9 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
       duration: const Duration(milliseconds: 700),
     )..repeat();
 
-    _shimmerAnimation = Tween<double>(
-      begin: -1.0,
-      end: 2.0,
-    ).animate(CurvedAnimation(
-      parent: _shimmerController,
-      curve: Curves.linear,
-    ));
+    _shimmerAnimation = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.linear),
+    );
 
     Future.delayed(const Duration(seconds: 0), () {
       streamTimeFromNative();
@@ -90,15 +90,19 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
     });
   }
 
+  Map<String, dynamic> _buildChannelArgs() => {
+    "configuration": widget.sdkConfiguration,
+    "cardNumber": widget.cardNumber ?? "",
+    "cardExpiry": widget.cardExpiry ?? "",
+    "cardCvv": widget.cardCvv ?? "",
+    "cardHolderName": widget.cardHolderName ?? "",
+  };
+
   Future<dynamic> startTapCardSDK() async {
     try {
       dynamic result = await _channel.invokeMethod(
         'start',
-        {
-          "configuration": widget.sdkConfiguration,
-          "cardNumber": widget.cardNumber ?? "",
-          "cardExpiry": widget.cardExpiry ?? "",
-        },
+        _buildChannelArgs(),
       );
       handleCallbacks(result);
       _startTapCardSDK2();
@@ -111,11 +115,7 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
     try {
       dynamic result = await _channel.invokeMethod(
         'start2',
-        {
-          "configuration": widget.sdkConfiguration,
-          "cardNumber": widget.cardNumber ?? "",
-          "cardExpiry": widget.cardExpiry ?? "",
-        },
+        _buildChannelArgs(),
       );
 
       handleCallbacks(result);
@@ -129,11 +129,7 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
     try {
       dynamic result = await _channel.invokeMethod(
         'generateToken',
-        {
-          "configuration": widget.sdkConfiguration,
-          "cardNumber": widget.cardNumber ?? "",
-          "cardExpiry": widget.cardExpiry ?? "",
-        },
+        _buildChannelArgs(),
       );
 
       handleCallbacks(result);
@@ -239,8 +235,9 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
         if (!isHeightSet) {
           bool? acceptanceBadge =
               widget.sdkConfiguration['features']?['acceptanceBadge'];
-          shimmerHeight =
-              (acceptanceBadge == null || acceptanceBadge == true) ? 105 : 74;
+          shimmerHeight = (acceptanceBadge == null || acceptanceBadge == true)
+              ? 105
+              : 74;
         }
 
         return Container(
@@ -266,9 +263,7 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
                 ).createShader(bounds);
               },
               blendMode: BlendMode.srcATop,
-              child: Container(
-                color: Colors.white,
-              ),
+              child: Container(color: Colors.white),
             ),
           ),
         );

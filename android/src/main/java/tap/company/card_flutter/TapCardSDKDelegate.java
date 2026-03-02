@@ -68,6 +68,8 @@ public class TapCardSDKDelegate implements PluginRegistry.ActivityResultListener
             HashMap<String, Object> tapCardConfigurations = (HashMap<String, Object>) params.get("configuration");
             String cardNumber = (String) params.get("cardNumber");
             String cardExpiry = (String) params.get("cardExpiry");
+            String cardCvv = (String) params.get("cardCvv");
+            String cardHolderName = (String) params.get("cardHolderName");
 
             // Log the configuration structure for debugging
             System.out.println("Tap Card Configurations " + tapCardConfigurations);

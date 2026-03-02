@@ -1,18 +1,21 @@
 import Flutter
 import UIKit
-import Card_iOS
+import TapPayments_Card_iOS
 
 class FLNativeViewFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger
 
     private var cardDelegate: TapCardViewDelegate
-    
+
     private var tapCardView: TapCardView
 
-    init(messenger: FlutterBinaryMessenger,cardDelegate:TapCardViewDelegate, tapCardView: TapCardView) {
+    private weak var plugin: CardFlutterPlugin?
+
+    init(messenger: FlutterBinaryMessenger, cardDelegate: TapCardViewDelegate, tapCardView: TapCardView, plugin: CardFlutterPlugin) {
         self.messenger = messenger
         self.cardDelegate = cardDelegate
         self.tapCardView = tapCardView
+        self.plugin = plugin
         super.init()
     }
 
@@ -27,7 +30,8 @@ class FLNativeViewFactory: NSObject, FlutterPlatformViewFactory {
             arguments: args,
             binaryMessenger: messenger,
             cardDelegate: cardDelegate,
-            tapCardView: tapCardView
+            tapCardView: tapCardView,
+            plugin: plugin
         )
     }
 
@@ -41,7 +45,7 @@ class FLNativeView: NSObject, FlutterPlatformView {
     private var _view: UIView
     private var _args: [String:Any]?
     private var cardDelegate: TapCardViewDelegate
-
+    private weak var plugin: CardFlutterPlugin?
 
     init(
         frame: CGRect,
@@ -49,10 +53,11 @@ class FLNativeView: NSObject, FlutterPlatformView {
         arguments args: Any?,
         binaryMessenger messenger: FlutterBinaryMessenger?,
         cardDelegate: TapCardViewDelegate,
-        tapCardView: TapCardView
-
+        tapCardView: TapCardView,
+        plugin: CardFlutterPlugin?
     ) {
         self.cardDelegate = cardDelegate
+        self.plugin = plugin
         _view = UIView()
         self._args = args as? [String:Any]
         super.init()
@@ -63,24 +68,32 @@ class FLNativeView: NSObject, FlutterPlatformView {
         return _view
     }
 
-   // var tapCardView = TapCardView.init()
-
-    func createNativeView(view _view: UIView,tapCardView: TapCardView){
+    func createNativeView(view _view: UIView, tapCardView: TapCardView) {
         _view.backgroundColor = UIColor.clear
-        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(300)){
-           // self.tapCardView = TapCardView(frame: .init(x: 0, y: 0, width: self._view.frame.width, height: self._view.frame.height))
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(300)) {
             self._view.addSubview(tapCardView)
             self._view.bringSubviewToFront(tapCardView)
             tapCardView.translatesAutoresizingMaskIntoConstraints = false
-                // adjust the constraints MUST
-                NSLayoutConstraint.activate([
-                    tapCardView.leadingAnchor.constraint(equalTo: self._view.leadingAnchor, constant: 0),
-                    tapCardView.trailingAnchor.constraint(equalTo: self._view.trailingAnchor, constant: 0),
-                    tapCardView.centerYAnchor.constraint(equalTo: self._view.centerYAnchor)
-                ])
-            tapCardView.initTapCardSDK(configDict: self._args ??  [:],delegate: self.cardDelegate )
-            
-            print(tapCardView.frame)
-            }
+            NSLayoutConstraint.activate([
+                tapCardView.leadingAnchor.constraint(equalTo: self._view.leadingAnchor, constant: 0),
+                tapCardView.trailingAnchor.constraint(equalTo: self._view.trailingAnchor, constant: 0),
+                tapCardView.centerYAnchor.constraint(equalTo: self._view.centerYAnchor)
+            ])
+
+            let cardCvv = self.plugin?.cardCvv ?? ""
+            let cardHolderName = self.plugin?.cardHolderName ?? ""
+
+            tapCardView.initTapCardSDK(
+                configDict: self._args ?? [:],
+                delegate: self.cardDelegate,
+                cardNumber: "",
+                cardExpiry: "",
+                cardCVV: cardCvv,
+                cardHolderName: cardHolderName
+            )
+
+            // Hide the native card view — Baraka uses its own UI
+            tapCardView.isHidden = true
+        }
     }
 }

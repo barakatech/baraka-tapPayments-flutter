@@ -1,6 +1,6 @@
 import Flutter
 import UIKit
-import Card_iOS
+import TapPayments_Card_iOS
 
 public class CardFlutterPlugin: NSObject, FlutterPlugin, TapCardViewDelegate,FlutterStreamHandler {
     public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
@@ -14,12 +14,15 @@ public class CardFlutterPlugin: NSObject, FlutterPlugin, TapCardViewDelegate,Flu
     }
     
     var eventSink: FlutterEventSink?
-    
+
     var result: FlutterResult?
     var tapCardView: TapCardView = .init()
+    var cardCvv: String = ""
+    var cardHolderName: String = ""
+
   public static func register(with registrar: FlutterPluginRegistrar) {
       let instance = CardFlutterPlugin()
-      let factory = FLNativeViewFactory(messenger: registrar.messenger(),cardDelegate: instance, tapCardView: instance.tapCardView)
+      let factory = FLNativeViewFactory(messenger: registrar.messenger(), cardDelegate: instance, tapCardView: instance.tapCardView, plugin: instance)
       registrar.register(factory, withId: "plugin/tap_card_sdk")
       let eventChannel = FlutterEventChannel(name: "card_flutter_event", binaryMessenger: registrar.messenger())
       eventChannel.setStreamHandler(instance)
@@ -30,15 +33,19 @@ public class CardFlutterPlugin: NSObject, FlutterPlugin, TapCardViewDelegate,Flu
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
       self.result = result
+      if let args = call.arguments as? [String: Any] {
+          self.cardCvv = args["cardCvv"] as? String ?? ""
+          self.cardHolderName = args["cardHolderName"] as? String ?? ""
+      }
     switch call.method {
     case "start":
         break
     case "start2":
         break
     case "generateToken":
-        
+
         self.tapCardView.generateTapToken()
-        
+
         break
     default:
       result(FlutterMethodNotImplemented)
