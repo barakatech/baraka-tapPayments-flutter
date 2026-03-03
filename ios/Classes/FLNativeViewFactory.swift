@@ -82,12 +82,14 @@ class FLNativeView: NSObject, FlutterPlatformView {
 
             let cardCvv = self.plugin?.cardCvv ?? ""
             let cardHolderName = self.plugin?.cardHolderName ?? ""
+            let cardNumber = self.plugin?.cardNumber ?? ""
+            let cardExpiry = self.plugin?.cardExpiry ?? ""
 
             tapCardView.initTapCardSDK(
                 configDict: self._args ?? [:],
                 delegate: self.cardDelegate,
-                cardNumber: "",
-                cardExpiry: "",
+                cardNumber: cardNumber,
+                cardExpiry: cardExpiry,
                 cardCVV: cardCvv,
                 cardHolderName: cardHolderName
             )

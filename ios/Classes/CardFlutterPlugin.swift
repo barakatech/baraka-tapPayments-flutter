@@ -19,6 +19,8 @@ public class CardFlutterPlugin: NSObject, FlutterPlugin, TapCardViewDelegate,Flu
     var tapCardView: TapCardView = .init()
     var cardCvv: String = ""
     var cardHolderName: String = ""
+    var cardNumber: String = ""
+    var cardExpiry: String = ""
 
   public static func register(with registrar: FlutterPluginRegistrar) {
       let instance = CardFlutterPlugin()
@@ -36,6 +38,8 @@ public class CardFlutterPlugin: NSObject, FlutterPlugin, TapCardViewDelegate,Flu
       if let args = call.arguments as? [String: Any] {
           self.cardCvv = args["cardCvv"] as? String ?? ""
           self.cardHolderName = args["cardHolderName"] as? String ?? ""
+          self.cardNumber = args["cardNumber"] as? String ?? ""
+          self.cardExpiry = args["cardExpiry"] as? String ?? ""
       }
     switch call.method {
     case "start":
