@@ -84,7 +84,7 @@ public class TapCardSDKDelegate implements PluginRegistry.ActivityResultListener
                 assert tapCardConfigurations != null;
                 // Convert to a safer configuration format
                 HashMap<String, Object> safeConfiguration = createSafeConfiguration(tapCardConfigurations);
-                CardDataConfiguration.INSTANCE.initializeSDK(activity1, safeConfiguration, this, tapCardKit, cardNumber, cardExpiry);
+                CardDataConfiguration.INSTANCE.initializeSDK(activity1, safeConfiguration, this, tapCardKit, cardNumber, cardExpiry, cardCvv, cardHolderName);
                 //  DataConfiguration.INSTANCE.addTapCardStatusDelegate(this);
 
             }
