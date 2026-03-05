@@ -388,7 +388,7 @@ public class TapCardSDKDelegate implements PluginRegistry.ActivityResultListener
     }
 
     @Override
-    public void onInValidInput(boolean b) {
+    public void onValidInput(String validationStatus) {
         handler.post(
                 new Runnable() {
                     @Override
@@ -396,7 +396,7 @@ public class TapCardSDKDelegate implements PluginRegistry.ActivityResultListener
 
                         try {
                             HashMap<String, Object> resultData = new HashMap<>();
-                            resultData.put("onValidInput", !b);
+                            resultData.put("onValidInput", validationStatus);
                             eventSink.success(resultData);
 
                         } catch (IllegalStateException exception) {
