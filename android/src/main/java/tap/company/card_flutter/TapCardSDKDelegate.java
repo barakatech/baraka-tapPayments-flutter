@@ -65,11 +65,11 @@ public class TapCardSDKDelegate implements PluginRegistry.ActivityResultListener
         try {
 
             initializeFirebase(activity1.getApplicationContext());
-            HashMap<String, Object> tapCardConfigurations = (HashMap<String, Object>) params.get("configuration");
-            String cardNumber = (String) params.get("cardNumber");
-            String cardExpiry = (String) params.get("cardExpiry");
-            String cardCvv = (String) params.get("cardCvv");
-            String cardHolderName = (String) params.get("cardHolderName");
+            final HashMap<String, Object> tapCardConfigurations = (HashMap<String, Object>) params.get("configuration");
+            final String cardNumber = (String) params.get("cardNumber");
+            final String cardExpiry = (String) params.get("cardExpiry");
+            final String cardCvv = (String) params.get("cardCvv");
+            final String cardHolderName = (String) params.get("cardHolderName");
 
             // Log the configuration structure for debugging
             System.out.println("Tap Card Configurations " + tapCardConfigurations);
@@ -77,16 +77,38 @@ public class TapCardSDKDelegate implements PluginRegistry.ActivityResultListener
                 logConfigurationStructure(tapCardConfigurations, "");
             }
 
-            if (generateToken) {
-                System.out.println("Coming here for generate token");
-                CardDataConfiguration.INSTANCE.generateToken(tapCardKit);
-            } else {
-                assert tapCardConfigurations != null;
-                // Convert to a safer configuration format
-                HashMap<String, Object> safeConfiguration = createSafeConfiguration(tapCardConfigurations);
-                CardDataConfiguration.INSTANCE.initializeSDK(activity1, safeConfiguration, this, tapCardKit, cardNumber, cardExpiry, cardCvv, cardHolderName);
-                //  DataConfiguration.INSTANCE.addTapCardStatusDelegate(this);
+            // The PlatformView may not have been instantiated yet when the
+            // Flutter side dispatches the first `start` call. Defer until
+            // the kit attached to the window is available — the delegate's
+            // own `tapCardKit` is created from applicationContext and its
+            // WebView never reaches an attached state, so initializing on
+            // it would never fire onCardReady.
+            final Activity invokerActivity = activity1;
+            final boolean wantsToken = generateToken;
+            Runnable runStart = new Runnable() {
+                @Override
+                public void run() {
+                    TapCardKit sharedKit = SharedTapCardKit.getInstance();
+                    TapCardKit kit = sharedKit != null ? sharedKit : tapCardKit;
+                    System.out.println("Using TapCardKit instance: "
+                            + (sharedKit != null ? "shared (attached)" : "delegate (orphan)"));
 
+                    if (wantsToken) {
+                        System.out.println("Coming here for generate token");
+                        CardDataConfiguration.INSTANCE.generateToken(kit);
+                    } else {
+                        assert tapCardConfigurations != null;
+                        HashMap<String, Object> safeConfiguration = createSafeConfiguration(tapCardConfigurations);
+                        CardDataConfiguration.INSTANCE.initializeSDK(invokerActivity, safeConfiguration, TapCardSDKDelegate.this, kit, cardNumber, cardExpiry, cardCvv, cardHolderName);
+                    }
+                }
+            };
+
+            if (SharedTapCardKit.getInstance() != null) {
+                runStart.run();
+            } else {
+                System.out.println("PlatformView not ready — deferring SDK start");
+                SharedTapCardKit.setPendingReadyListener(runStart);
             }
 
         } catch (Exception e) {

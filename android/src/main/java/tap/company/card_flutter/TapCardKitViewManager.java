@@ -24,6 +24,9 @@ class TapCardKitViewManager implements PlatformView {
         System.out.println("Params from factory class >>>>>> " + creationParams);
         view = LayoutInflater.from(context).inflate(R.layout.tap_card_kit_layout, null);
         tapCardKit = view.findViewById(R.id.tapCardForm);
+        // Share this attached-to-window TapCardKit with the delegate so
+        // initializeSDK runs against the visible View (matches iOS parity).
+        SharedTapCardKit.setInstance(tapCardKit);
     }
 
 
@@ -35,6 +38,7 @@ class TapCardKitViewManager implements PlatformView {
 
     @Override
     public void dispose() {
+        SharedTapCardKit.clearInstance(tapCardKit);
     }
 
 }
