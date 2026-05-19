@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -53,6 +54,8 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
 
   bool tokenAlreadyInProgress = false;
   bool sdkStarted = false;
+  bool _disposed = false;
+  StreamSubscription<dynamic>? _eventSubscription;
   static const MethodChannel _channel = MethodChannel('card_flutter');
 
   static const EventChannel _eventChannel = EventChannel('card_flutter_event');
@@ -63,7 +66,10 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
   double? _pendingHeight;
 
   void streamTimeFromNative() {
-    _eventChannel.receiveBroadcastStream().listen(_onEvent, onError: _onError);
+    _eventSubscription = _eventChannel.receiveBroadcastStream().listen(
+      _onEvent,
+      onError: _onError,
+    );
   }
 
   void _onEvent(dynamic event) {
@@ -99,11 +105,13 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
   };
 
   Future<dynamic> startTapCardSDK() async {
+    if (_disposed) return;
     try {
       dynamic result = await _channel.invokeMethod(
         'start',
         _buildChannelArgs(),
       );
+      if (_disposed) return;
       handleCallbacks(result);
       _startTapCardSDK2();
     } catch (ex) {
@@ -112,12 +120,13 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
   }
 
   Future<dynamic> _startTapCardSDK2() async {
+    if (_disposed) return;
     try {
       dynamic result = await _channel.invokeMethod(
         'start2',
         _buildChannelArgs(),
       );
-
+      if (_disposed) return;
       handleCallbacks(result);
       _startTapCardSDK2();
     } catch (ex) {
@@ -126,12 +135,24 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
   }
 
   Future<dynamic> generateTapToken() async {
+    if (_disposed) return;
     try {
+      // On Android, the PlatformView is not re-mounted between Continue
+      // presses (re-mounting it would leave `onCardReady` un-fired and
+      // tokenization stuck). Instead we push the current field values into
+      // the WebView via a dedicated method channel call before triggering
+      // the actual token generation. iOS handles this differently (the
+      // ValueKey-driven re-mount feeds the fields through `initializeSDK`),
+      // so we keep the existing path there.
+      if (Platform.isAndroid) {
+        await _channel.invokeMethod('fillFields', _buildChannelArgs());
+        if (_disposed) return;
+      }
       dynamic result = await _channel.invokeMethod(
         'generateToken',
         _buildChannelArgs(),
       );
-
+      if (_disposed) return;
       handleCallbacks(result);
       _startTapCardSDK2();
     } catch (ex) {
@@ -140,6 +161,7 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
   }
 
   handleCallbacks(dynamic result) {
+    if (_disposed || !mounted) return;
     if (result.containsKey("onHeightChange")) {
       _pendingHeight = double.parse(result["onHeightChange"].toString()) + 10;
 
@@ -209,6 +231,9 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
 
   @override
   void dispose() {
+    _disposed = true;
+    _eventSubscription?.cancel();
+    _eventSubscription = null;
     _shimmerController.dispose();
     _heightDebounceTimer?.cancel();
     super.dispose();

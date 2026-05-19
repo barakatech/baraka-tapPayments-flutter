@@ -7,14 +7,11 @@ class FLNativeViewFactory: NSObject, FlutterPlatformViewFactory {
 
     private var cardDelegate: TapCardViewDelegate
 
-    private var tapCardView: TapCardView
-
     private weak var plugin: CardFlutterPlugin?
 
-    init(messenger: FlutterBinaryMessenger, cardDelegate: TapCardViewDelegate, tapCardView: TapCardView, plugin: CardFlutterPlugin) {
+    init(messenger: FlutterBinaryMessenger, cardDelegate: TapCardViewDelegate, plugin: CardFlutterPlugin) {
         self.messenger = messenger
         self.cardDelegate = cardDelegate
-        self.tapCardView = tapCardView
         self.plugin = plugin
         super.init()
     }
@@ -30,7 +27,6 @@ class FLNativeViewFactory: NSObject, FlutterPlatformViewFactory {
             arguments: args,
             binaryMessenger: messenger,
             cardDelegate: cardDelegate,
-            tapCardView: tapCardView,
             plugin: plugin
         )
     }
@@ -46,6 +42,11 @@ class FLNativeView: NSObject, FlutterPlatformView {
     private var _args: [String:Any]?
     private var cardDelegate: TapCardViewDelegate
     private weak var plugin: CardFlutterPlugin?
+    // Each PlatformView owns its own TapCardView instance. The Tap SDK keeps
+    // internal per-instance state (tokens, web view session) that prevents
+    // a second tokenization on the same instance, so we cannot share one
+    // across multiple Flutter PlatformView lifecycles.
+    private let tapCardView: TapCardView
 
     init(
         frame: CGRect,
@@ -53,15 +54,27 @@ class FLNativeView: NSObject, FlutterPlatformView {
         arguments args: Any?,
         binaryMessenger messenger: FlutterBinaryMessenger?,
         cardDelegate: TapCardViewDelegate,
-        tapCardView: TapCardView,
         plugin: CardFlutterPlugin?
     ) {
         self.cardDelegate = cardDelegate
         self.plugin = plugin
+        self.tapCardView = TapCardView()
         _view = UIView()
         self._args = args as? [String:Any]
         super.init()
+        // Mark this instance as the active one so generateToken targets it.
+        plugin?.activeTapCardView = tapCardView
         createNativeView(view: _view, tapCardView: tapCardView)
+    }
+
+    deinit {
+        // Detach our TapCardView so the SDK's internal views (WebView etc.)
+        // do not remain attached to the iOS window hierarchy and intercept
+        // touch events on subsequent Flutter screens.
+        tapCardView.removeFromSuperview()
+        if plugin?.activeTapCardView === tapCardView {
+            plugin?.activeTapCardView = nil
+        }
     }
 
     func view() -> UIView {

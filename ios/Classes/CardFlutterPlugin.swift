@@ -16,7 +16,11 @@ public class CardFlutterPlugin: NSObject, FlutterPlugin, TapCardViewDelegate,Flu
     var eventSink: FlutterEventSink?
 
     var result: FlutterResult?
-    var tapCardView: TapCardView = .init()
+    // The currently active PlatformView's TapCardView. Each FLNativeView
+    // creates its own TapCardView instance and registers it here on init,
+    // so that generateToken targets the correct instance. We keep a weak
+    // reference so disposed PlatformViews can be deallocated.
+    weak var activeTapCardView: TapCardView?
     var cardCvv: String = ""
     var cardHolderName: String = ""
     var cardNumber: String = ""
@@ -24,12 +28,12 @@ public class CardFlutterPlugin: NSObject, FlutterPlugin, TapCardViewDelegate,Flu
 
   public static func register(with registrar: FlutterPluginRegistrar) {
       let instance = CardFlutterPlugin()
-      let factory = FLNativeViewFactory(messenger: registrar.messenger(), cardDelegate: instance, tapCardView: instance.tapCardView, plugin: instance)
+      let factory = FLNativeViewFactory(messenger: registrar.messenger(), cardDelegate: instance, plugin: instance)
       registrar.register(factory, withId: "plugin/tap_card_sdk")
       let eventChannel = FlutterEventChannel(name: "card_flutter_event", binaryMessenger: registrar.messenger())
       eventChannel.setStreamHandler(instance)
       let channel = FlutterMethodChannel(name: "card_flutter", binaryMessenger: registrar.messenger())
-   
+
       registrar.addMethodCallDelegate(instance, channel: channel)
   }
 
@@ -47,9 +51,7 @@ public class CardFlutterPlugin: NSObject, FlutterPlugin, TapCardViewDelegate,Flu
     case "start2":
         break
     case "generateToken":
-
-        self.tapCardView.generateTapToken()
-
+        self.activeTapCardView?.generateTapToken()
         break
     default:
       result(FlutterMethodNotImplemented)

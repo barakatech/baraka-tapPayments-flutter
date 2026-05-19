@@ -328,6 +328,29 @@ public class CardFlutterPlugin implements MethodChannel.MethodCallHandler, Flutt
         if (call.method.equals("start")) {
             delegate.start(activity, result, args, generateToken, eventSink);
 
+        } else if (call.method.equals("fillFields")) {
+            // Pushes the current card field values into the WebView form via
+            // the same JS bridge that `initializeSDK` uses. Used by the
+            // Flutter side to feed headless input into the SDK without
+            // re-mounting the PlatformView (the Android `AndroidView` does
+            // not reliably re-emit `onCardReady` after a re-mount, which
+            // would otherwise leave tokenization stuck waiting forever).
+            String cardNumber = args != null ? (String) args.get("cardNumber") : null;
+            String cardExpiry = args != null ? (String) args.get("cardExpiry") : null;
+            String cardCvv = args != null ? (String) args.get("cardCvv") : null;
+            String cardHolderName = args != null ? (String) args.get("cardHolderName") : null;
+            try {
+                TapCardKit.Companion.fillCardNumber(
+                        cardNumber != null ? cardNumber : "",
+                        cardExpiry != null ? cardExpiry : "",
+                        cardCvv != null ? cardCvv : "",
+                        cardHolderName != null ? cardHolderName : ""
+                );
+                result.success(null);
+            } catch (Throwable t) {
+                result.error("fill_fields_failed", t.getMessage(), null);
+            }
+
         } else {
             delegate.pendingResult = result;
             delegate.eventSink = eventSink;
