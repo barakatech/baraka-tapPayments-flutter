@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -137,17 +136,15 @@ class _TapCardViewWidgetState extends State<TapCardViewWidget>
   Future<dynamic> generateTapToken() async {
     if (_disposed) return;
     try {
-      // On Android, the PlatformView is not re-mounted between Continue
-      // presses (re-mounting it would leave `onCardReady` un-fired and
-      // tokenization stuck). Instead we push the current field values into
-      // the WebView via a dedicated method channel call before triggering
-      // the actual token generation. iOS handles this differently (the
-      // ValueKey-driven re-mount feeds the fields through `initializeSDK`),
-      // so we keep the existing path there.
-      if (Platform.isAndroid) {
-        await _channel.invokeMethod('fillFields', _buildChannelArgs());
-        if (_disposed) return;
-      }
+      // Push the current field values into the (already-ready) SDK instance
+      // before triggering tokenization, on BOTH platforms. This lets the host
+      // keep a single, stable PlatformView for the whole flow instead of
+      // re-mounting it on iOS. The iOS re-mount raced the native event
+      // channel's listen/cancel between the disposed and freshly-created
+      // PlatformViews and dropped the `onSuccess` callback, leaving
+      // tokenization stuck forever even though the token had been generated.
+      await _channel.invokeMethod('fillFields', _buildChannelArgs());
+      if (_disposed) return;
       dynamic result = await _channel.invokeMethod(
         'generateToken',
         _buildChannelArgs(),

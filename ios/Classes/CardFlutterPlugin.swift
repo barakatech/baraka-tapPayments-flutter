@@ -50,6 +50,20 @@ public class CardFlutterPlugin: NSObject, FlutterPlugin, TapCardViewDelegate,Flu
         break
     case "start2":
         break
+    case "fillFields":
+        // Push the current card field values into the already-ready SDK
+        // instance via the JS bridge, WITHOUT re-creating the PlatformView.
+        // Mirrors the Android `fillFields` path. We MUST call `result` so the
+        // Dart-side `await invokeMethod('fillFields')` completes and the
+        // subsequent `generateToken` call proceeds.
+        self.activeTapCardView?.fillCardData(
+            cardNumber: self.cardNumber,
+            cardExpiry: self.cardExpiry,
+            cardCVV: self.cardCvv,
+            cardHolderName: self.cardHolderName
+        )
+        result(nil)
+        break
     case "generateToken":
         self.activeTapCardView?.generateTapToken()
         break
