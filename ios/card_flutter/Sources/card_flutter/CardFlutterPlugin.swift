@@ -1,6 +1,10 @@
 import Flutter
 import UIKit
+#if canImport(TapPayments_Card_iOS)
 import TapPayments_Card_iOS
+#else
+import Card_iOS
+#endif
 
 public class CardFlutterPlugin: NSObject, FlutterPlugin, TapCardViewDelegate,FlutterStreamHandler {
     public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {

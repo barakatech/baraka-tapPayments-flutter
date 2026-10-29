@@ -1,6 +1,10 @@
 import Flutter
 import UIKit
+#if canImport(TapPayments_Card_iOS)
 import TapPayments_Card_iOS
+#else
+import Card_iOS
+#endif
 
 class FLNativeViewFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger

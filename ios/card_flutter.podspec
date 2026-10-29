@@ -13,7 +13,7 @@ A new Flutter project.
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Your Company' => 'a.maqbool@tap.company' }
   s.source           = { :path => '.' }
-  s.source_files = 'Classes/**/*'
+  s.source_files = 'card_flutter/Sources/card_flutter/**/*'
   s.dependency 'Flutter'
   s.dependency 'TapPayments-Card-iOS'
   s.platform = :ios, '13.0'
